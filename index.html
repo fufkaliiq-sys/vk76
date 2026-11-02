@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Ярославль 76 — доступ</title>
+  <script src="https://unpkg.com/@vkontakte/vk-bridge@2/dist/browser.min.js"></script>
+  <style>
+    body { margin: 0; padding: 20px; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #0e2540; color: #eaf1fb; }
+    h1 { font-size: 20px; margin: 0 0 6px; }
+    p { font-size: 14px; line-height: 1.5; color: #b0c1d6; }
+    button { width: 100%; padding: 14px; margin: 8px 0; border: 0; border-radius: 10px; font-size: 15px; font-weight: 600; background: #f0b429; color: #0e2540; }
+    textarea { width: 100%; box-sizing: border-box; height: 150px; margin-top: 10px; padding: 10px; border-radius: 10px; border: 1px solid #2a4a72; background: #08162a; color: #eaf1fb; font-family: monospace; font-size: 12px; }
+    .ok { color: #7ee2a8; }
+    .err { color: #ff9b8a; }
+    code { background: #08162a; padding: 2px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Ярославль 76 — доступ</h1>
+  <p>Страница нужна, чтобы получить токен с правами на фото, стену и управление сообществом. Токен никуда не отправляется сам — только показывается вам.</p>
+
+  <button id="auth">1. Получить токен</button>
+  <button id="test">2. Проверить право на фото</button>
+  <textarea id="out" readonly placeholder="Здесь появится результат"></textarea>
+
+  <script>
+    const out = document.getElementById('out');
+    const log = (t) => { out.value += t + '\n'; };
+
+    let bridge;
+    try { bridge = vkBridge; log('VK Bridge загружен'); }
+    catch (e) { log('ОШИБКА: VK Bridge не загрузился — открывайте страницу внутри ВК, а не в браузере'); }
+
+    let token = '';
+
+    document.getElementById('auth').onclick = async () => {
+      try {
+        const appId = Number(new URLSearchParams(location.search).get('vk_app_id')) || undefined;
+        const res = await bridge.send('VKWebAppGetAuthToken', {
+          app_id: appId,
+          scope: 'photos,wall,groups,offline'
+        });
+        token = res.access_token;
+        log('Токен получен, длина ' + token.length);
+        log('Скопируйте его в .env строкой VK_TOKEN=...');
+        log('---- НАЧАЛО ТОКЕНА ----');
+        log(token);
+        log('---- КОНЕЦ ТОКЕНА ----');
+      } catch (e) {
+        log('ОШИБКА получения токена: ' + (e && e.error_data ? JSON.stringify(e.error_data) : e));
+      }
+    };
+
+    document.getElementById('test').onclick = async () => {
+      if (!token) { log('Сначала получите токен'); return; }
+      try {
+        const res = await bridge.send('VKWebAppCallAPIMethod', {
+          method: 'photos.getWallUploadServer',
+          params: { group_id: '242888643', access_token: token, v: '5.199' }
+        });
+        if (res.response && res.response.upload_url) log('ПРАВО НА ФОТО ЕСТЬ: upload_url получен');
+        else log('Ответ: ' + JSON.stringify(res).slice(0, 300));
+      } catch (e) {
+        log('ОШИБКА вызова API: ' + (e && e.error_data ? JSON.stringify(e.error_data) : e));
+      }
+    };
+  </script>
+</body>
+</html>
