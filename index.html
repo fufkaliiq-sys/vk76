@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ярославль 76 — доступ</title>
-  <script src="https://unpkg.com/@vkontakte/vk-bridge@2/dist/browser.min.js"></script>
+  <!-- скрипт лежит рядом, без внешних CDN: unpkg.com в РФ часто недоступен -->
+  <script src="vk-bridge.js"></script>
   <style>
     body { margin: 0; padding: 20px; font-family: -apple-system, "Segoe UI", Roboto, sans-serif; background: #0e2540; color: #eaf1fb; }
     h1 { font-size: 20px; margin: 0 0 6px; }
@@ -12,8 +13,6 @@
     button { width: 100%; padding: 14px; margin: 8px 0; border: 0; border-radius: 10px; font-size: 15px; font-weight: 600; background: #f0b429; color: #0e2540; }
     textarea { width: 100%; box-sizing: border-box; height: 150px; margin-top: 10px; padding: 10px; border-radius: 10px; border: 1px solid #2a4a72; background: #08162a; color: #eaf1fb; font-family: monospace; font-size: 12px; }
     .ok { color: #7ee2a8; }
-    .err { color: #ff9b8a; }
-    code { background: #08162a; padding: 2px 5px; border-radius: 4px; }
   </style>
 </head>
 <body>
@@ -28,22 +27,27 @@
     const out = document.getElementById('out');
     const log = (t) => { out.value += t + '\n'; };
 
-    let bridge;
-    try { bridge = vkBridge; log('VK Bridge загружен'); }
-    catch (e) { log('ОШИБКА: VK Bridge не загрузился — открывайте страницу внутри ВК, а не в браузере'); }
+    if (!window.vkBridge) {
+      log('ОШИБКА: vk-bridge.js не загрузился.');
+      log('Проверьте, что файл vk-bridge.js лежит в том же репозитории рядом с index.html.');
+    } else {
+      vkBridge.send('VKWebAppInit')
+        .then(() => log('VK Bridge готов'))
+        .catch((e) => log('VKWebAppInit: ' + JSON.stringify(e)));
+    }
 
     let token = '';
 
     document.getElementById('auth').onclick = async () => {
       try {
-        const appId = Number(new URLSearchParams(location.search).get('vk_app_id')) || undefined;
-        const res = await bridge.send('VKWebAppGetAuthToken', {
+        const params = new URLSearchParams(location.search);
+        const appId = Number(params.get('vk_app_id')) || 54872910;
+        const res = await vkBridge.send('VKWebAppGetAuthToken', {
           app_id: appId,
           scope: 'photos,wall,groups,offline'
         });
         token = res.access_token;
         log('Токен получен, длина ' + token.length);
-        log('Скопируйте его в .env строкой VK_TOKEN=...');
         log('---- НАЧАЛО ТОКЕНА ----');
         log(token);
         log('---- КОНЕЦ ТОКЕНА ----');
@@ -55,7 +59,7 @@
     document.getElementById('test').onclick = async () => {
       if (!token) { log('Сначала получите токен'); return; }
       try {
-        const res = await bridge.send('VKWebAppCallAPIMethod', {
+        const res = await vkBridge.send('VKWebAppCallAPIMethod', {
           method: 'photos.getWallUploadServer',
           params: { group_id: '242888643', access_token: token, v: '5.199' }
         });
