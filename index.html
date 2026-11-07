@@ -44,7 +44,7 @@
         const appId = Number(params.get('vk_app_id')) || 54872910;
         const res = await vkBridge.send('VKWebAppGetAuthToken', {
           app_id: appId,
-          scope: 'photos,wall,groups,offline'
+          scope: 'photos,wall,groups'
         });
         token = res.access_token;
         log('Токен получен, длина ' + token.length);
